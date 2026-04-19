@@ -43,6 +43,9 @@ enum State {
 @export var mid_combo_threshold: float = 228.0
 @export var far_jump_trigger_distance: float = 286.0
 @export var far_jump_trigger_chance: float = 0.36
+@export var lock_jump_trigger_distance: float = 680.0
+@export var lock_jump_cooldown_ms: int = 2200
+@export var lock_jump_target_bias: float = 28.0
 @export var combo_link_window_ms: int = 780
 @export var fast_recovery_ms: int = 360
 @export var slow_recovery_ms: int = 560
@@ -76,6 +79,7 @@ var _feint_followup_attack: StringName = &""
 var _feint_release_ms: int = 0
 var _is_fake_attack: bool = false
 var _jump_visual_lift: float = 0.0
+var _current_jump_arc_height: float = 0.0
 var _base_visual_position: Vector2 = Vector2.ZERO
 var _chase_frame_offsets: Array[Vector2] = []
 var _idle_offset: Vector2 = Vector2.ZERO
@@ -83,10 +87,13 @@ var _current_frame_offset: Vector2 = Vector2.ZERO
 var _active_fx: Array[AnimatedSprite2D] = []
 var _burst_fx_frames: SpriteFrames = AnimationFactoryRef.build_burst_frames()
 var _boom_frames: SpriteFrames = AnimationFactoryRef.build_boom_frames()
+var _jump_charge_fx_frames: SpriteFrames = SpriteFrames.new()
 var _next_turn_allowed_ms: int = 0
 var _poise_window_start_ms: int = 0
 var _poise_hits_in_window: int = 0
 var _next_poise_stun_allowed_ms: int = 0
+var _next_lock_jump_allowed_ms: int = 0
+var _lock_jump_armed: bool = false
 var _last_attack_used: StringName = &""
 var _last_attack_used_ms: int = -10_000
 var _last_feint_ms: int = -10_000
@@ -114,6 +121,7 @@ func _ready() -> void:
 	_attack_sfx_player.volume_db = -1.2
 	_burst_sfx_player.stream = _load_first_stream(BOSS_BURST_SFX_CANDIDATES)
 	_burst_sfx_player.volume_db = -0.2
+	_jump_charge_fx_frames = _build_boom_prefix_frames(8)
 	emit_hp_changed()
 
 
@@ -199,11 +207,14 @@ func _reset_combat_flow() -> void:
 	_feint_release_ms = 0
 	_is_fake_attack = false
 	_jump_visual_lift = 0.0
+	_current_jump_arc_height = jump_arc_height
 	visual.speed_scale = 1.0
 	_next_turn_allowed_ms = 0
 	_poise_window_start_ms = Time.get_ticks_msec()
 	_poise_hits_in_window = 0
 	_next_poise_stun_allowed_ms = 0
+	_next_lock_jump_allowed_ms = 0
+	_lock_jump_armed = false
 	_last_attack_used = &""
 	_last_attack_used_ms = -10_000
 	_last_feint_ms = -10_000
@@ -343,6 +354,17 @@ func _update_facing(distance_x: float, now: int) -> void:
 
 func _process_idle_or_chase(now: int, distance_x: float, delta: float) -> void:
 	var abs_distance := absf(distance_x)
+	if abs_distance > detect_range:
+		if _can_start_lock_jump(abs_distance, now):
+			_start_lock_jump(now)
+			return
+		# Keep pursuing even outside detect range so boss cannot be kited out of AI range.
+		state = State.CHASE
+		if visual.animation != &"chase":
+			visual.play(&"chase")
+		visual.speed_scale = 1.06 + clampf((abs_distance - detect_range) / 620.0, 0.0, 0.2)
+		velocity.x = move_toward(velocity.x, signf(distance_x) * move_speed * 1.15, 980.0 * delta)
+		return
 	if now >= next_attack_ms and _can_open_attack(abs_distance):
 		_start_attack(abs_distance, now)
 		return
@@ -358,6 +380,27 @@ func _process_idle_or_chase(now: int, distance_x: float, delta: float) -> void:
 		if visual.animation != &"idle":
 			visual.play(&"idle")
 		velocity.x = move_toward(velocity.x, 0.0, 1400.0 * delta)
+
+
+func _can_start_lock_jump(distance_to_player: float, now: int) -> bool:
+	if distance_to_player < lock_jump_trigger_distance:
+		return false
+	if now < next_attack_ms or now < _next_lock_jump_allowed_ms:
+		return false
+	if state in [State.STUN, State.HURT, State.FEINT, State.JUMP, State.DEAD]:
+		return false
+	return true
+
+
+func _start_lock_jump(now: int) -> void:
+	_next_lock_jump_allowed_ms = now + lock_jump_cooldown_ms
+	_lock_jump_armed = true
+	if _jump_charge_fx_frames != null \
+		and _jump_charge_fx_frames.has_animation(&"charge") \
+		and _jump_charge_fx_frames.get_frame_count(&"charge") > 0:
+		_spawn_fx(_jump_charge_fx_frames, &"charge", global_position + Vector2(0.0, -20.0), Vector2(0.9, 0.9))
+	TimeDirector.request_shake(120, 8.0)
+	_execute_attack(&"jump", now)
 
 
 func _can_open_attack(distance_to_player: float) -> bool:
@@ -544,12 +587,18 @@ func _execute_attack(choice: StringName, now: int) -> void:
 			visual.speed_scale = 1.06
 			_jump_started_ms = now
 			_jump_origin_x = global_position.x
-			var target_bias: float = 52.0 * signf(player_ref.global_position.x - global_position.x)
+			var target_bias_magnitude := lock_jump_target_bias if _lock_jump_armed else 52.0
+			var target_bias: float = target_bias_magnitude * signf(player_ref.global_position.x - global_position.x)
+			var jump_distance := absf(player_ref.global_position.x - global_position.x)
 			_jump_target_x = player_ref.global_position.x - target_bias
 			_jump_travel_duration_ms = jump_travel_ms + (160 if absf(_jump_target_x - _jump_origin_x) > 300.0 else 0)
+			if _lock_jump_armed:
+				_jump_travel_duration_ms += 180 + (100 if jump_distance > 760.0 else 0)
+			_current_jump_arc_height = jump_arc_height * (1.35 if _lock_jump_armed else 1.0)
 			_jump_visual_lift = 0.0
 			visual.play(&"jump")
 			_play_attack_sfx(0.98)
+			_lock_jump_armed = false
 		&"grab":
 			state = State.GRAB
 			visual.speed_scale = 0.84
@@ -577,9 +626,10 @@ func _process_jump(now: int, delta: float) -> void:
 	var progress := clampf(float(travel_elapsed) / float(maxi(_jump_travel_duration_ms, 1)), 0.0, 1.0)
 	var eased := progress * progress * (3.0 - 2.0 * progress)
 	global_position.x = lerpf(_jump_origin_x, _jump_target_x, eased)
-	_jump_visual_lift = -sin(progress * PI) * jump_arc_height
+	_jump_visual_lift = -sin(progress * PI) * _current_jump_arc_height
 	if progress >= 1.0:
 		_jump_visual_lift = 0.0
+		_current_jump_arc_height = jump_arc_height
 		state = State.SLAM
 		visual.speed_scale = 0.92
 		visual.play(&"slam")
@@ -633,6 +683,22 @@ func _update_phase() -> void:
 	EventBus.emit_game_event(&"boss.phase.enter", {"phase": phase}, "boss_phase_%d" % phase)
 	TimeDirector.request_hit_stop(220, 0.06)
 	TimeDirector.request_flash(Color(1.0, 0.22, 0.2, 0.85), 180, 0.26)
+
+
+func _build_boom_prefix_frames(frame_count: int) -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	if _boom_frames == null or not _boom_frames.has_animation(&"boom"):
+		return frames
+	var source_count := _boom_frames.get_frame_count(&"boom")
+	if source_count <= 0:
+		return frames
+	frames.add_animation(&"charge")
+	frames.set_animation_speed(&"charge", _boom_frames.get_animation_speed(&"boom"))
+	frames.set_animation_loop(&"charge", false)
+	var count := mini(source_count, frame_count)
+	for idx in range(count):
+		frames.add_frame(&"charge", _boom_frames.get_frame_texture(&"boom", idx))
+	return frames
 
 
 func _spawn_fx(frames: SpriteFrames, animation_name: StringName, spawn_position: Vector2, fx_scale: Vector2) -> AnimatedSprite2D:

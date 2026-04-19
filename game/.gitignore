@@ -1,3 +1,73 @@
-# Godot 4+ specific ignores
+# ====================
+# Godot 4.x 核心忽略（最重要！）
+# ====================
+# 必须忽略！这是引擎的本地缓存/导入目录，包含转换后的 .import 文件、.godot/ 文件夹
 .godot/
-/android/
+*.import
+
+# ====================
+# 操作系统生成的垃圾文件
+# ====================
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ====================
+# IDE / 编辑器（按需保留你用的，删掉不用的）
+# ====================
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains Rider / IntelliJ
+.idea/
+
+# VS / Visual Studio
+.vs/
+*.sln
+*.csproj
+*.user
+
+# ====================
+# 导出的打包文件（绝对不能提交！）
+# ====================
+# 你导出的游戏 executable 和依赖包，应该通过 GitHub Releases 发布，不要放在代码仓库里
+*.exe
+*.zip
+*.tar.gz
+*.gz
+*.7z
+*.dmg
+*.app
+*.x86_64
+*.x86
+*.arm64
+
+# ====================
+# Godot 特殊情况（按需开启）
+# ====================
+# 如果你的项目是纯 GDScript，没有用 C# / .NET，保持下面这行注释掉即可。
+# 如果你用了 C#，请取消下面这行的注释，避免提交 C# 的构建缓存：
+# [Bb]in/
+# [Oo]bj/
+
+# 忽略临时的测试导出文件
+/export_presets.cfg
