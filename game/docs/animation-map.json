@@ -1,0 +1,212 @@
+{
+  "player": [
+    {
+      "state": "idle",
+      "animation_name": "idle",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/move/player_move_01.png",
+      "frame_count": 1,
+      "fps": 2,
+      "loop": true,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "move",
+      "animation_name": "move",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/move/player_move_01-07.png",
+      "frame_count": 7,
+      "fps": 11,
+      "loop": true,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "attack_light_1",
+      "animation_name": "attack_1",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/attack_1/player_attack_1_01-06.png",
+      "frame_count": 6,
+      "fps": 14,
+      "loop": false,
+      "hit_frames": [2, 3],
+      "event_frames": []
+    },
+    {
+      "state": "attack_light_2",
+      "animation_name": "attack_2",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/attack_2/player_attack_2_01-09.png",
+      "frame_count": 9,
+      "fps": 13,
+      "loop": false,
+      "hit_frames": [3, 4, 5],
+      "event_frames": []
+    },
+    {
+      "state": "attack_light_3",
+      "animation_name": "attack_3",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/attack_2/player_attack_2_03-09.png",
+      "frame_count": 7,
+      "fps": 17,
+      "loop": false,
+      "hit_frames": [2, 3, 4],
+      "event_frames": []
+    },
+    {
+      "state": "guard",
+      "animation_name": "guard_raise / guard_hold",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/parry/player_parry_01-04.png",
+      "frame_count": 4,
+      "fps": 16,
+      "loop": false,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "parry_success",
+      "animation_name": "parry",
+      "source_kind": "sequence",
+      "source_path": "res://assets/player/parry/player_parry_01-09.png",
+      "frame_count": 9,
+      "fps": 18,
+      "loop": false,
+      "hit_frames": [],
+      "event_frames": [4, 5]
+    }
+  ],
+  "enemy": [
+    {
+      "state": "idle",
+      "animation_name": "idle",
+      "source_kind": "spritesheet",
+      "source_path": "res://assets/enemy/enemy_idle_sheet.png",
+      "frame_size": [128, 128],
+      "frame_count": 1,
+      "fps": 2,
+      "loop": true,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "chase",
+      "animation_name": "walk",
+      "source_kind": "spritesheet",
+      "source_path": "res://assets/enemy/enemy_walk_sheet.png",
+      "frame_size": [128, 128],
+      "frame_count": 7,
+      "fps": 10,
+      "loop": true,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "attack_1",
+      "animation_name": "attack_1",
+      "source_kind": "spritesheet",
+      "source_path": "res://assets/enemy/enemy_attack_1_sheet.png",
+      "frame_size": [128, 128],
+      "frame_count": 4,
+      "fps": 11,
+      "loop": false,
+      "hit_frames": [1, 2],
+      "event_frames": []
+    },
+    {
+      "state": "attack_2",
+      "animation_name": "attack_2",
+      "source_kind": "spritesheet",
+      "source_path": "res://assets/enemy/enemy_attack_2_sheet.png",
+      "frame_size": [128, 128],
+      "frame_count": 4,
+      "fps": 11,
+      "loop": false,
+      "hit_frames": [1, 2],
+      "event_frames": []
+    }
+  ],
+  "boss": [
+    {
+      "state": "chase",
+      "animation_name": "chase",
+      "source_kind": "sequence",
+      "source_path": "res://assets/boss/walk/boss_walk_01-19.png",
+      "frame_count": 19,
+      "fps": 12,
+      "loop": true,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "attack_sweep",
+      "animation_name": "sweep",
+      "source_kind": "sequence",
+      "source_path": "res://assets/boss/attack/boss_attack_01-07.png",
+      "frame_count": 7,
+      "fps": 12,
+      "loop": false,
+      "hit_frames": [3, 4],
+      "event_frames": []
+    },
+    {
+      "state": "attack_slam_3",
+      "animation_name": "slam",
+      "source_kind": "sequence",
+      "source_path": "res://assets/boss/slam/boss_slam_01-19.png",
+      "frame_count": 19,
+      "fps": 13,
+      "loop": false,
+      "hit_frames": [8, 12, 16],
+      "event_frames": []
+    },
+    {
+      "state": "attack_grab",
+      "animation_name": "grab",
+      "source_kind": "sequence",
+      "source_path": "res://assets/boss/attack/boss_attack_01-07.png",
+      "frame_count": 7,
+      "fps": 16,
+      "loop": false,
+      "hit_frames": [2, 3, 4],
+      "event_frames": []
+    },
+    {
+      "state": "attack_burst",
+      "animation_name": "burst",
+      "source_kind": "sequence",
+      "source_path": "res://assets/boss/attack/boss_attack_01-07.png",
+      "frame_count": 7,
+      "fps": 9,
+      "loop": false,
+      "hit_frames": [4, 5],
+      "event_frames": []
+    }
+  ],
+  "fx": [
+    {
+      "state": "boom",
+      "animation_name": "boom",
+      "source_kind": "sequence",
+      "source_path": "res://assets/fx/boom/boom_01-09.png",
+      "frame_count": 9,
+      "fps": 18,
+      "loop": false,
+      "hit_frames": [],
+      "event_frames": []
+    },
+    {
+      "state": "boss_burst",
+      "animation_name": "burst",
+      "source_kind": "sequence",
+      "source_path": "res://assets/fx/boss_burst/boss_burst_01-32.png",
+      "frame_count": 32,
+      "fps": 16,
+      "loop": false,
+      "hit_frames": [],
+      "event_frames": []
+    }
+  ]
+}

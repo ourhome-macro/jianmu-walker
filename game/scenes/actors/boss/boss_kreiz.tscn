@@ -1,0 +1,45 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/actors/boss_kreiz.gd" id="1_tf2mu"]
+[ext_resource type="Script" path="res://scripts/core/attack_area.gd" id="2_yru84"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ukw12"]
+size = Vector2(64, 90)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kd9c5"]
+size = Vector2(54, 84)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1i37l"]
+size = Vector2(150, 82)
+
+[node name="BossKreiz" type="CharacterBody2D"]
+script = ExtResource("1_tf2mu")
+
+[node name="Visual" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -64)
+z_index = 5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -48)
+shape = SubResource("RectangleShape2D_ukw12")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 0
+monitoring = true
+monitorable = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -48)
+shape = SubResource("RectangleShape2D_kd9c5")
+
+[node name="AttackArea" type="Area2D" parent="."]
+script = ExtResource("2_yru84")
+collision_layer = 0
+collision_mask = 4
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackArea"]
+position = Vector2(96, -46)
+shape = SubResource("RectangleShape2D_1i37l")

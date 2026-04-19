@@ -1,0 +1,45 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/actors/enemy_monk.gd" id="1_4w8dm"]
+[ext_resource type="Script" path="res://scripts/core/attack_area.gd" id="2_3s8vu"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_8k3o4"]
+size = Vector2(24, 54)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v3spk"]
+size = Vector2(20, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jg5pt"]
+size = Vector2(54, 40)
+
+[node name="EnemyMonk" type="CharacterBody2D"]
+script = ExtResource("1_4w8dm")
+
+[node name="Visual" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -44)
+z_index = 5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -28)
+shape = SubResource("RectangleShape2D_8k3o4")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 0
+monitoring = true
+monitorable = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -28)
+shape = SubResource("RectangleShape2D_v3spk")
+
+[node name="AttackArea" type="Area2D" parent="."]
+script = ExtResource("2_3s8vu")
+collision_layer = 0
+collision_mask = 4
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackArea"]
+position = Vector2(46, -26)
+shape = SubResource("RectangleShape2D_jg5pt")

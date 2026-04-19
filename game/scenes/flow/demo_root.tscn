@@ -1,0 +1,110 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/flow/demo_root.gd" id="1_pxk4x"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/player.tscn" id="2_f7mbn"]
+[ext_resource type="Script" path="res://scripts/ui/backdrop.gd" id="3_ja7h2"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="4_kk3uc"]
+[ext_resource type="Script" path="res://scripts/actors/jianmu_bot.gd" id="5_l4j9x"]
+[ext_resource type="Script" path="res://scripts/world/world_art.gd" id="6_1h4kf"]
+[ext_resource type="Script" path="res://scripts/world/portal_gate.gd" id="7_2aq9u"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_r7n5o"]
+size = Vector2(6200, 80)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_8r1fk"]
+radius = 86.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_r4p8u"]
+radius = 86.0
+
+[node name="DemoRoot" type="Node2D"]
+script = ExtResource("1_pxk4x")
+
+[node name="BackdropLayer" type="CanvasLayer" parent="."]
+layer = -30
+
+[node name="Backdrop" type="Control" parent="BackdropLayer"]
+script = ExtResource("3_ja7h2")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Arena" type="Node2D" parent="."]
+
+[node name="WorldArt" type="Node2D" parent="Arena"]
+z_index = -10
+script = ExtResource("6_1h4kf")
+
+[node name="Floor" type="StaticBody2D" parent="Arena"]
+position = Vector2(2880, 636)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Floor"]
+shape = SubResource("RectangleShape2D_r7n5o")
+
+[node name="FxRoot" type="Node2D" parent="Arena"]
+
+[node name="Portals" type="Node2D" parent="Arena"]
+
+[node name="EnemyPortal" type="Area2D" parent="Arena/Portals"]
+position = Vector2(1760, 536)
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("7_2aq9u")
+portal_id = &"enemy"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Portals/EnemyPortal"]
+shape = SubResource("CircleShape2D_8r1fk")
+
+[node name="BossPortal" type="Area2D" parent="Arena/Portals"]
+position = Vector2(3680, 536)
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("7_2aq9u")
+portal_id = &"boss"
+accent_color = Color(1, 0.290196, 0.25098, 0.95)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Portals/BossPortal"]
+shape = SubResource("CircleShape2D_r4p8u")
+
+[node name="SpawnPoints" type="Node2D" parent="Arena"]
+
+[node name="TutorialSpawn" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(520, 596)
+
+[node name="EnemyEntrySpawn" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(2360, 596)
+
+[node name="EnemyFightSpawn" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(2860, 596)
+
+[node name="BossEntrySpawn" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(4280, 596)
+
+[node name="BossFightSpawn" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(4780, 596)
+
+[node name="Actors" type="Node2D" parent="Arena"]
+
+[node name="Player" parent="Arena/Actors" instance=ExtResource("2_f7mbn")]
+position = Vector2(520, 596)
+
+[node name="JianmuBot" type="Node2D" parent="Arena/Actors"]
+script = ExtResource("5_l4j9x")
+position = Vector2(350, 484)
+
+[node name="CameraRig" type="Node2D" parent="."]
+position = Vector2(640, 360)
+
+[node name="Camera2D" type="Camera2D" parent="CameraRig"]
+position = Vector2(0, 0)
+enabled = true
+zoom = Vector2(1, 1)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("4_kk3uc")
+
+[node name="BgmPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -10.0

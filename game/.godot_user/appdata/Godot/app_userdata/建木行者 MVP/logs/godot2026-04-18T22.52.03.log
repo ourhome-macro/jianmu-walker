@@ -1,0 +1,11 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2570)
+SCRIPT ERROR: Invalid type in function 'set_checklist' in base 'CanvasLayer (hud.gd)'. The array of argument 1 (Array) does not have the same element type as the expected typed array argument.
+   at: _start_tutorial (res://scripts/flow/demo_root.gd:79)
+   GDScript backtrace (most recent call first):
+       [0] _start_tutorial (res://scripts/flow/demo_root.gd:79)
+       [1] _ready (res://scripts/flow/demo_root.gd:47)
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2641)
