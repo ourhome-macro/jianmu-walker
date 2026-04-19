@@ -431,7 +431,7 @@ func _run_ending_sequence() -> void:
 	backdrop.set_stage(ENDING_STAGE)
 	_set_stage_label("结幕 · 星球与建木")
 	await hud.fade_from_black(0.9)
-	await hud.show_title("建木行者", "四个文明被同一棵巨树缝合在星球表面", 2.8)
+	await hud.show_title("建木行者", "", 2.8)
 	await hud.say("建木机器人", "这是……我们世界的第一次建交……通过建木……", 2.6)
 	hud.flash(Color(0.0, 0.0, 0.0), 220, 0.72)
 	TimeDirector.request_shake(260, 12.0)
