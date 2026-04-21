@@ -58,7 +58,7 @@ static func build_enemy_frames() -> SpriteFrames:
 static func build_boss_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	_add_sequence(frames, &"idle", "res://assets/boss/walk/boss_walk_", 1, 1, 1.0, true)
-	_add_sequence(frames, &"chase", "res://assets/boss/walk/boss_walk_", 1, 19, 12.0, true)
+	_add_sequence(frames, &"chase", "res://assets/boss/walk/boss_walk_", 8, 15, 12.0, true)
 	_add_sequence(frames, &"sweep", "res://assets/boss/attack/boss_attack_", 1, 7, 12.0, false)
 	_add_sequence(frames, &"grab", "res://assets/boss/attack/boss_attack_", 1, 7, 16.0, false)
 	_add_sequence(frames, &"slam", "res://assets/boss/slam/boss_slam_", 1, 19, 13.0, false)

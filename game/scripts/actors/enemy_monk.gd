@@ -24,6 +24,9 @@ enum State {
 @export var visual_scale: float = 1.16
 @export var visual_foot_y: float = 16.0
 @export var hp_bar_y: float = -102.0
+@export var attack_warning_ms: int = 300
+@export var attack_warning_font_size: int = 54
+@export var attack_warning_offset_y: float = -120.0
 
 var hp: int = max_hp
 var facing: float = -1.0
@@ -34,6 +37,7 @@ var next_attack_ms: int = 0
 var _hurt_recover_ms: int = 0
 var _use_alt_attack: bool = false
 var _flash_timer: float = 0.0
+var _attack_warning_until_ms: int = 0
 
 @onready var visual: AnimatedSprite2D = $Visual
 @onready var attack_area: Area2D = $AttackArea
@@ -150,6 +154,7 @@ func emit_hp_changed() -> void:
 func _start_attack() -> void:
 	state = State.ATTACK
 	_use_alt_attack = not _use_alt_attack
+	_show_attack_warning(attack_warning_ms)
 	visual.play(&"attack_2" if _use_alt_attack else &"attack_1")
 	next_attack_ms = Time.get_ticks_msec() + attack_cooldown_ms
 
@@ -171,7 +176,8 @@ func _on_visual_frame_changed() -> void:
 					"damage": 12,
 					"attack_name": &"enemy_attack_1",
 					"knockback": Vector2(160.0 * facing, -35.0),
-					"can_be_parried": true
+					"can_be_parried": true,
+					"max_hit_distance": 130.0
 				})
 			else:
 				attack_area.deactivate()
@@ -182,7 +188,8 @@ func _on_visual_frame_changed() -> void:
 					"damage": 14,
 					"attack_name": &"enemy_attack_2",
 					"knockback": Vector2(210.0 * facing, -48.0),
-					"can_be_parried": true
+					"can_be_parried": true,
+					"max_hit_distance": 150.0
 				})
 			else:
 				attack_area.deactivate()
@@ -210,3 +217,24 @@ func _draw() -> void:
 		var ratio := float(hp) / float(max_hp)
 		draw_rect(Rect2(-24.0, hp_bar_y, 48.0, 6.0), Color(0.08, 0.08, 0.1, 0.55), true)
 		draw_rect(Rect2(-24.0, hp_bar_y, 48.0 * ratio, 6.0), Color(0.86, 0.26, 0.3, 0.9), true)
+	if state != State.DEAD and Time.get_ticks_msec() < _attack_warning_until_ms:
+		_draw_attack_warning()
+
+
+func _show_attack_warning(duration_ms: int) -> void:
+	_attack_warning_until_ms = maxi(_attack_warning_until_ms, Time.get_ticks_msec() + duration_ms)
+
+
+func _draw_attack_warning() -> void:
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	var font_size := maxi(attack_warning_font_size, 16)
+	var glyph_size := font.get_string_size("!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var origin := Vector2(-glyph_size.x * 0.5, attack_warning_offset_y)
+	var outline_color := Color(0.05, 0.03, 0.02, 0.92)
+	draw_string(font, origin + Vector2(-2.0, 0.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(2.0, 0.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(0.0, -2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(0.0, 2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin, "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 0.92, 0.22, 1.0))

@@ -15,6 +15,8 @@ var checklist_box: VBoxContainer
 var checklist_labels: Array[Label] = []
 var player_bar: ProgressBar
 var player_hp_label: Label
+var player_posture_bar: ProgressBar
+var player_posture_label: Label
 var boss_panel: PanelContainer
 var boss_name_label: Label
 var boss_bar: ProgressBar
@@ -49,6 +51,23 @@ func set_player_hp(current_hp: int, max_hp: int) -> void:
 	player_bar.max_value = max_hp
 	player_bar.value = current_hp
 	player_hp_label.text = "HP %d / %d" % [current_hp, max_hp]
+
+
+func set_guard_posture(current: float, max_value: float) -> void:
+	if player_posture_bar == null:
+		return
+	var safe_max := maxf(max_value, 1.0)
+	var clamped_current := clampf(current, 0.0, safe_max)
+	player_posture_bar.max_value = safe_max
+	player_posture_bar.value = clamped_current
+	var percent := int(round((clamped_current / safe_max) * 100.0))
+	player_posture_label.text = "Posture %d%%" % percent
+	if percent >= 85:
+		player_posture_bar.modulate = Color(1.0, 0.65, 0.32, 1.0)
+	elif percent >= 60:
+		player_posture_bar.modulate = Color(1.0, 0.88, 0.52, 1.0)
+	else:
+		player_posture_bar.modulate = Color(0.82, 0.98, 1.0, 1.0)
 
 
 func show_boss_bar(title: String, max_hp: int) -> void:
@@ -321,7 +340,7 @@ func _build_ui() -> void:
 	player_panel.anchor_left = 0.0
 	player_panel.anchor_top = 1.0
 	player_panel.offset_left = 24.0
-	player_panel.offset_top = -92.0
+	player_panel.offset_top = -136.0
 	player_panel.offset_right = 300.0
 	player_panel.offset_bottom = -24.0
 	player_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.03, 0.05, 0.08, 0.82), Color(0.22, 0.74, 0.92, 0.28)))
@@ -351,6 +370,21 @@ func _build_ui() -> void:
 	player_bar.add_theme_stylebox_override("fill", _make_bar_style(Color(0.26, 0.86, 0.96, 0.95)))
 	player_bar.add_theme_stylebox_override("background", _make_bar_style(Color(0.08, 0.1, 0.14, 0.95)))
 	player_vbox.add_child(player_bar)
+
+	player_posture_label = Label.new()
+	player_posture_label.label_settings = _make_label_settings(15, Color(0.84, 0.95, 1.0), 3, Color(0.01, 0.02, 0.04, 0.9))
+	player_posture_label.text = "Posture 0%"
+	player_vbox.add_child(player_posture_label)
+
+	player_posture_bar = ProgressBar.new()
+	player_posture_bar.min_value = 0.0
+	player_posture_bar.max_value = 100.0
+	player_posture_bar.value = 0.0
+	player_posture_bar.show_percentage = false
+	player_posture_bar.custom_minimum_size = Vector2(0.0, 16.0)
+	player_posture_bar.add_theme_stylebox_override("fill", _make_bar_style(Color(0.92, 0.62, 0.26, 0.95)))
+	player_posture_bar.add_theme_stylebox_override("background", _make_bar_style(Color(0.08, 0.1, 0.14, 0.95)))
+	player_vbox.add_child(player_posture_bar)
 
 	boss_panel = PanelContainer.new()
 	boss_panel.anchor_left = 0.5

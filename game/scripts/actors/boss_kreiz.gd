@@ -58,6 +58,9 @@ enum State {
 @export var poise_hits_required: int = 8
 @export var poise_stun_ms: int = 720
 @export var poise_stun_cooldown_ms: int = 2600
+@export var attack_warning_ms: int = 340
+@export var attack_warning_font_size: int = 62
+@export var attack_warning_offset_y: float = -156.0
 
 var hp: int = max_hp
 var facing: float = -1.0
@@ -97,6 +100,8 @@ var _lock_jump_armed: bool = false
 var _last_attack_used: StringName = &""
 var _last_attack_used_ms: int = -10_000
 var _last_feint_ms: int = -10_000
+var _attack_warning_until_ms: int = 0
+var _attack_facing_locked: bool = false
 
 @onready var visual: AnimatedSprite2D = $Visual
 @onready var attack_area: Area2D = $AttackArea
@@ -218,6 +223,8 @@ func _reset_combat_flow() -> void:
 	_last_attack_used = &""
 	_last_attack_used_ms = -10_000
 	_last_feint_ms = -10_000
+	_attack_warning_until_ms = 0
+	_attack_facing_locked = false
 
 
 func emit_hp_changed() -> void:
@@ -262,6 +269,7 @@ func _enter_poise_stun(now: int) -> void:
 	_next_poise_stun_allowed_ms = now + poise_stun_cooldown_ms
 	_is_fake_attack = false
 	_feint_followup_attack = &""
+	_attack_facing_locked = false
 	attack_area.deactivate()
 	visual.speed_scale = 1.0
 	visual.play(&"idle")
@@ -289,6 +297,7 @@ func on_parried(player: Node2D, _hit_data: Dictionary) -> void:
 	visual.play(&"idle")
 	_is_fake_attack = false
 	_feint_followup_attack = &""
+	_attack_facing_locked = false
 	_combo_step = 0
 	velocity.x = signf(global_position.x - player.global_position.x) * 160.0
 	_stun_until_ms = Time.get_ticks_msec() + 1250
@@ -322,6 +331,7 @@ func _physics_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, 0.0, 1400.0 * delta)
 			if now >= _stun_until_ms:
 				state = State.IDLE
+				_attack_facing_locked = false
 				visual.speed_scale = 1.0
 				visual.play(&"idle")
 		State.FEINT:
@@ -342,6 +352,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_facing(distance_x: float, now: int) -> void:
+	if _attack_facing_locked:
+		return
 	if absf(distance_x) <= turn_dead_zone:
 		return
 	var desired: float = signf(distance_x)
@@ -545,6 +557,8 @@ func _start_feint(choice: StringName, now: int) -> void:
 	_feint_followup_attack = choice
 	_feint_release_ms = now + 260
 	_last_feint_ms = now
+	_attack_facing_locked = true
+	_show_attack_warning(attack_warning_ms)
 	attack_area.deactivate()
 	visual.speed_scale = 1.1
 	visual.play(&"sweep")
@@ -571,6 +585,8 @@ func _process_feint(now: int, delta: float) -> void:
 func _execute_attack(choice: StringName, now: int) -> void:
 	_last_attack_used = choice
 	_last_attack_used_ms = now
+	_attack_facing_locked = true
+	_show_attack_warning(attack_warning_ms)
 	match choice:
 		&"sweep":
 			state = State.SWEEP
@@ -656,6 +672,7 @@ func _die() -> void:
 	active = false
 	attack_area.deactivate()
 	_burst_flash_armed = false
+	_attack_facing_locked = false
 	visual.speed_scale = 1.0
 	_jump_visual_lift = 0.0
 	_clear_active_fx()
@@ -738,7 +755,8 @@ func _on_visual_frame_changed() -> void:
 					"damage": 14 + phase * 2,
 					"attack_name": &"boss_attack_sweep",
 					"knockback": Vector2(250.0 * facing, -58.0),
-					"can_be_parried": true
+					"can_be_parried": true,
+					"max_hit_distance": 220.0
 				})
 			else:
 				attack_area.deactivate()
@@ -750,7 +768,8 @@ func _on_visual_frame_changed() -> void:
 					"attack_name": &"boss_attack_grab",
 					"knockback": Vector2(300.0 * facing, -70.0),
 					"can_be_parried": false,
-					"is_grab": true
+					"is_grab": true,
+					"max_hit_distance": 210.0
 				})
 			else:
 				attack_area.deactivate()
@@ -761,7 +780,8 @@ func _on_visual_frame_changed() -> void:
 					"damage": 12 + phase * 2,
 					"attack_name": &"boss_attack_slam",
 					"knockback": Vector2(198.0 * facing, -90.0),
-					"can_be_parried": true
+					"can_be_parried": true,
+					"max_hit_distance": 230.0
 				})
 				_spawn_fx(_boom_frames, &"boom", global_position + Vector2(0.0, -12.0), Vector2(0.58, 0.58))
 				TimeDirector.request_shake(170, 12.5)
@@ -774,7 +794,8 @@ func _on_visual_frame_changed() -> void:
 					"damage": 16 + phase * 2,
 					"attack_name": &"boss_attack_burst",
 					"knockback": Vector2(228.0 * facing, -76.0),
-					"can_be_parried": true
+					"can_be_parried": true,
+					"max_hit_distance": 250.0
 				})
 				if _burst_flash_armed:
 					_burst_flash_armed = false
@@ -793,6 +814,7 @@ func _on_visual_animation_finished() -> void:
 	match visual.animation:
 		&"sweep", &"grab", &"slam", &"burst":
 			attack_area.deactivate()
+			_attack_facing_locked = false
 			visual.speed_scale = 1.0
 			if state != State.DEAD and state != State.JUMP:
 				state = State.IDLE
@@ -811,6 +833,27 @@ func _draw() -> void:
 	var aura_alpha := 0.08 + phase * 0.03
 	draw_arc(Vector2.ZERO, 86.0, -0.6, 0.6, 24, Color(1.0, 0.18, 0.16, aura_alpha), 3.0)
 	draw_arc(Vector2.ZERO, 86.0, PI - 0.6, PI + 0.6, 24, Color(1.0, 0.18, 0.16, aura_alpha), 3.0)
+	if state != State.DEAD and Time.get_ticks_msec() < _attack_warning_until_ms:
+		_draw_attack_warning()
+
+
+func _show_attack_warning(duration_ms: int) -> void:
+	_attack_warning_until_ms = maxi(_attack_warning_until_ms, Time.get_ticks_msec() + duration_ms)
+
+
+func _draw_attack_warning() -> void:
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	var font_size := maxi(attack_warning_font_size, 22)
+	var glyph_size := font.get_string_size("!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var origin := Vector2(-glyph_size.x * 0.5, attack_warning_offset_y)
+	var outline_color := Color(0.06, 0.03, 0.02, 0.92)
+	draw_string(font, origin + Vector2(-2.0, 0.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(2.0, 0.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(0.0, -2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin + Vector2(0.0, 2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
+	draw_string(font, origin, "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 0.92, 0.26, 1.0))
 
 
 func _play_attack_sfx(pitch: float = 1.0) -> void:

@@ -86,11 +86,13 @@ func _ready() -> void:
 	player.global_position = tutorial_spawn.global_position
 	player.lock_for_cinematic()
 	player.hp_changed.connect(hud.set_player_hp)
+	player.guard_posture_changed.connect(hud.set_guard_posture)
 	player.tutorial_action.connect(_on_player_tutorial_action)
 	player.perfect_dodge.connect(_on_player_perfect_dodge)
 	player.perfect_parry.connect(_on_player_perfect_parry)
 	player.hp_zero.connect(_on_player_dead)
 	hud.set_player_hp(player.hp, player.max_hp)
+	hud.set_guard_posture(player.guard_posture, player.guard_posture_max)
 	hud.hide_boss_bar()
 	hud.set_game_title("建木行者", "Jianmu Walker")
 

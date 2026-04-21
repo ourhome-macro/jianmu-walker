@@ -17,6 +17,7 @@ signal perfect_dodge
 signal perfect_parry
 signal tutorial_action(action_name: StringName)
 signal attack_hit(target: Node)
+signal guard_posture_changed(current: float, max_value: float)
 
 const GRAVITY := 2400.0
 
@@ -47,6 +48,11 @@ enum State {
 @export var perfect_parry_window_ms: int = 400
 @export var invincible_ms_on_dodge: int = 220
 @export var guard_chip_ratio: float = 0.18
+@export var guard_posture_max: float = 100.0
+@export var guard_posture_gain_on_block: float = 22.0
+@export var guard_posture_gain_per_damage: float = 0.4
+@export var guard_posture_relief_on_attack_hit: float = 8.0
+@export var guard_posture_after_guard_break_hit: float = 10.0
 @export_range(0.0, 1.0, 0.01) var perfect_dodge_heal_ratio: float = 0.10
 @export_range(0.0, 1.0, 0.01) var perfect_parry_heal_ratio: float = 0.15
 @export var attack_interval_ms: int = 420
@@ -73,6 +79,7 @@ var _dodge_collision_exceptions: Array[PhysicsBody2D] = []
 var no_damage_mode: bool = false
 var _flash_timer: float = 0.0
 var _afterimage_accumulator: float = 0.0
+var guard_posture: float = 0.0
 
 @onready var visual: AnimatedSprite2D = $Visual
 @onready var attack_area: Area2D = $AttackArea
@@ -96,6 +103,7 @@ func _ready() -> void:
 	_parry_sfx_player.stream = _load_first_stream(PARRY_SFX_CANDIDATES)
 	_parry_sfx_player.volume_db = -0.4
 	emit_hp_changed()
+	emit_guard_posture_changed()
 
 
 func _physics_process(delta: float) -> void:
@@ -173,6 +181,23 @@ func emit_hp_changed() -> void:
 	hp_changed.emit(hp, max_hp)
 
 
+func emit_guard_posture_changed() -> void:
+	guard_posture_changed.emit(guard_posture, guard_posture_max)
+
+
+func _set_guard_posture(value: float) -> void:
+	guard_posture = clampf(value, 0.0, guard_posture_max)
+	emit_guard_posture_changed()
+
+
+func _add_guard_posture(delta: float) -> void:
+	_set_guard_posture(guard_posture + delta)
+
+
+func reset_guard_posture() -> void:
+	_set_guard_posture(0.0)
+
+
 func _heal_by_ratio(ratio: float) -> void:
 	if ratio <= 0.0 or hp >= max_hp:
 		return
@@ -184,6 +209,7 @@ func _heal_by_ratio(ratio: float) -> void:
 func refill_hp() -> void:
 	hp = max_hp
 	emit_hp_changed()
+	reset_guard_posture()
 
 
 func force_recover_for_flow(enable_no_damage: bool = false) -> void:
@@ -203,6 +229,7 @@ func force_recover_for_flow(enable_no_damage: bool = false) -> void:
 	_air_dodge_available = true
 	invincible_until_ms = 0
 	_flash_timer = 0.0
+	reset_guard_posture()
 	_set_enemy_pass_through(false)
 	_change_state(State.IDLE)
 	visual.play(&"idle")
@@ -226,7 +253,7 @@ func receive_hit(hit_data: Dictionary) -> void:
 		if hit_data.get("can_be_parried", true) and guard_age <= perfect_parry_window_ms:
 			_trigger_perfect_parry(hit_data)
 			return
-		_apply_guard_chip(hit_data)
+		_apply_guard_block(hit_data)
 		return
 
 	var knockback := hit_data.get("knockback", Vector2.ZERO) as Vector2
@@ -364,12 +391,24 @@ func _take_damage(amount: int, knockback: Vector2) -> void:
 	velocity = knockback
 
 
-func _apply_guard_chip(hit_data: Dictionary) -> void:
+func _apply_guard_block(hit_data: Dictionary) -> void:
+	var damage_amount := int(hit_data.get("damage", 10))
+	var knockback := hit_data.get("knockback", Vector2.ZERO) as Vector2
+	var posture_gain := guard_posture_gain_on_block + float(damage_amount) * guard_posture_gain_per_damage
+	_add_guard_posture(posture_gain)
+	if guard_posture >= guard_posture_max:
+		TimeDirector.request_hit_stop(130, 0.05)
+		TimeDirector.request_flash(Color(1.0, 0.66, 0.22, 0.85), 130, 0.26)
+		TimeDirector.request_shake(180, 11.0)
+		_set_guard_posture(0.0)
+		_add_guard_posture(guard_posture_after_guard_break_hit)
+		_take_damage(damage_amount, knockback * 1.1)
+		return
 	if no_damage_mode:
 		TimeDirector.request_shake(50, 4.0)
 		velocity.x = -facing * 40.0
 		return
-	var chip := maxi(1, int(round(hit_data.get("damage", 10) * guard_chip_ratio)))
+	var chip := maxi(1, int(round(float(damage_amount) * guard_chip_ratio)))
 	hp = max(hp - chip, 0)
 	emit_hp_changed()
 	visual.modulate = Color(0.75, 0.92, 1.0, 1.0)
@@ -394,6 +433,7 @@ func _trigger_perfect_parry(hit_data: Dictionary) -> void:
 		_parry_sfx_player.play()
 	invincible_until_ms = Time.get_ticks_msec() + 400
 	_heal_by_ratio(perfect_parry_heal_ratio)
+	_set_guard_posture(guard_posture * 0.5)
 	perfect_parry.emit()
 	EventBus.emit_game_event(&"player.parry.perfect")
 	_change_state(State.PARRY)
@@ -555,6 +595,7 @@ func _update_attack_window(frame: int, damage_amount: int, knockback: Vector2, a
 
 
 func _on_attack_hit_target(target: Node, _hit_data: Dictionary) -> void:
+	_add_guard_posture(-guard_posture_relief_on_attack_hit)
 	attack_hit.emit(target)
 	EventBus.emit_game_event(&"player.attack.hit")
 	TimeDirector.request_hit_stop(45, 0.16)
