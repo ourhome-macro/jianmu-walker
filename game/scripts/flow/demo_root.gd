@@ -349,6 +349,7 @@ func _spawn_boss() -> void:
 	boss_ref.global_position = Vector2(boss_fight_spawn.global_position.x, GROUND_Y)
 	boss_ref.hp_changed.connect(hud.set_boss_hp)
 	boss_ref.phase_changed.connect(_on_boss_phase_changed)
+	boss_ref.phase_three_countdown.connect(_on_boss_phase_three_countdown)
 	boss_ref.defeated.connect(_on_boss_defeated)
 	hud.show_boss_bar("癫狂的克雷兹", boss_ref.max_hp)
 	hud.set_boss_hp(boss_ref.max_hp, boss_ref.max_hp)
@@ -362,12 +363,13 @@ func _on_boss_phase_changed(phase: int) -> void:
 		2:
 			phase_text = "阶段 II · 失控增压"
 			tint = Color(1.0, 0.48, 0.24)
-			player.refill_hp()
 			call_deferred("_play_phase_dialogue", phase)
 		3:
 			phase_text = "阶段 III · 深红爆发"
 			tint = Color(1.0, 0.18, 0.18)
 			player.refill_hp()
+			if boss_ref != null and boss_ref.has_method("trigger_phase_three_super_slam"):
+				boss_ref.trigger_phase_three_super_slam()
 			call_deferred("_play_phase_dialogue", phase)
 		_:
 			phase_text = "阶段 I · 试探"
@@ -380,6 +382,10 @@ func _play_phase_dialogue(phase: int) -> void:
 			await hud.say("癫狂的克雷兹", "疼……好疼……但我喜欢！！！", 1.8)
 		3:
 			await hud.say("癫狂的克雷兹", "杀了我……然后你也一起来！！！", 2.0)
+
+
+func _on_boss_phase_three_countdown(step: int) -> void:
+	hud.show_prompt("癫狂的克雷兹：%d" % step, 0.42)
 func _on_boss_defeated() -> void:
 	if _boss_sequence_started:
 		return

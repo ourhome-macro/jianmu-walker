@@ -1,6 +1,10 @@
 extends CharacterBody2D
 
 const AnimationFactoryRef = preload("res://scripts/core/animation_factory.gd")
+const ENEMY_WARNING_SFX_CANDIDATES := [
+	"res://assets/audio/boss atk.mp3",
+	"res://assets/audio/player_attack.mp3"
+]
 
 signal hp_changed(current_hp: int, max_hp: int)
 signal defeated
@@ -41,6 +45,7 @@ var _attack_warning_until_ms: int = 0
 
 @onready var visual: AnimatedSprite2D = $Visual
 @onready var attack_area: Area2D = $AttackArea
+@onready var _warning_sfx_player: AudioStreamPlayer2D = AudioStreamPlayer2D.new()
 
 
 func _ready() -> void:
@@ -52,6 +57,9 @@ func _ready() -> void:
 	visual.animation_finished.connect(_on_visual_animation_finished)
 	attack_area.hit_target.connect(_on_attack_hit_target)
 	$Hurtbox.add_to_group("hurtbox")
+	add_child(_warning_sfx_player)
+	_warning_sfx_player.stream = _load_first_stream(ENEMY_WARNING_SFX_CANDIDATES)
+	_warning_sfx_player.volume_db = -6.0
 	emit_hp_changed()
 
 
@@ -222,7 +230,12 @@ func _draw() -> void:
 
 
 func _show_attack_warning(duration_ms: int) -> void:
-	_attack_warning_until_ms = maxi(_attack_warning_until_ms, Time.get_ticks_msec() + duration_ms)
+	var expires_at := Time.get_ticks_msec() + duration_ms
+	if expires_at > _attack_warning_until_ms:
+		_attack_warning_until_ms = expires_at
+		if _warning_sfx_player.stream != null:
+			_warning_sfx_player.pitch_scale = 1.3
+			_warning_sfx_player.play()
 
 
 func _draw_attack_warning() -> void:
@@ -238,3 +251,12 @@ func _draw_attack_warning() -> void:
 	draw_string(font, origin + Vector2(0.0, -2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
 	draw_string(font, origin + Vector2(0.0, 2.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, outline_color)
 	draw_string(font, origin, "!", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 0.92, 0.22, 1.0))
+
+
+func _load_first_stream(paths: Array) -> AudioStream:
+	for path in paths:
+		if ResourceLoader.exists(path):
+			var stream := load(path)
+			if stream is AudioStream:
+				return stream
+	return null

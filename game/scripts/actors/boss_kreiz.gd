@@ -10,9 +10,14 @@ const BOSS_BURST_SFX_CANDIDATES := [
 	"res://assets/audio/boss澶ф嫑.mp3",
 	"res://assets/audio/boss_burst.mp3"
 ]
+const BOSS_WARNING_SFX_CANDIDATES := [
+	"res://assets/audio/boss atk.mp3",
+	"res://assets/audio/boss_attack.mp3"
+]
 
 signal hp_changed(current_hp: int, max_hp: int)
 signal phase_changed(phase: int)
+signal phase_three_countdown(step: int)
 signal defeated
 
 const GRAVITY := 2400.0
@@ -61,6 +66,9 @@ enum State {
 @export var attack_warning_ms: int = 340
 @export var attack_warning_font_size: int = 62
 @export var attack_warning_offset_y: float = -156.0
+@export var phase_three_super_slam_damage_bonus: int = 14
+@export var phase_three_super_slam_knockback_x: float = 360.0
+@export var phase_three_super_slam_knockback_y: float = -160.0
 
 var hp: int = max_hp
 var facing: float = -1.0
@@ -102,11 +110,13 @@ var _last_attack_used_ms: int = -10_000
 var _last_feint_ms: int = -10_000
 var _attack_warning_until_ms: int = 0
 var _attack_facing_locked: bool = false
+var _phase_three_super_slam_running: bool = false
 
 @onready var visual: AnimatedSprite2D = $Visual
 @onready var attack_area: Area2D = $AttackArea
 @onready var _attack_sfx_player: AudioStreamPlayer2D = AudioStreamPlayer2D.new()
 @onready var _burst_sfx_player: AudioStreamPlayer2D = AudioStreamPlayer2D.new()
+@onready var _warning_sfx_player: AudioStreamPlayer2D = AudioStreamPlayer2D.new()
 
 
 func _ready() -> void:
@@ -122,10 +132,13 @@ func _ready() -> void:
 	$Hurtbox.add_to_group("hurtbox")
 	add_child(_attack_sfx_player)
 	add_child(_burst_sfx_player)
+	add_child(_warning_sfx_player)
 	_attack_sfx_player.stream = _load_first_stream(BOSS_ATTACK_SFX_CANDIDATES)
 	_attack_sfx_player.volume_db = -1.2
 	_burst_sfx_player.stream = _load_first_stream(BOSS_BURST_SFX_CANDIDATES)
 	_burst_sfx_player.volume_db = -0.2
+	_warning_sfx_player.stream = _load_first_stream(BOSS_WARNING_SFX_CANDIDATES)
+	_warning_sfx_player.volume_db = -5.0
 	_jump_charge_fx_frames = _build_boom_prefix_frames(8)
 	emit_hp_changed()
 
@@ -225,6 +238,7 @@ func _reset_combat_flow() -> void:
 	_last_feint_ms = -10_000
 	_attack_warning_until_ms = 0
 	_attack_facing_locked = false
+	_phase_three_super_slam_running = false
 
 
 func emit_hp_changed() -> void:
@@ -309,6 +323,14 @@ func _physics_process(delta: float) -> void:
 		visual.modulate = Color(1.0, 0.82, 0.82, 1.0)
 	else:
 		visual.modulate = Color.WHITE
+
+	if _phase_three_super_slam_running:
+		velocity = Vector2.ZERO
+		attack_area.deactivate()
+		visual.flip_h = facing < 0.0
+		_refresh_visual_alignment()
+		queue_redraw()
+		return
 
 	if not is_on_floor():
 		velocity.y += GRAVITY * delta
@@ -673,6 +695,7 @@ func _die() -> void:
 	attack_area.deactivate()
 	_burst_flash_armed = false
 	_attack_facing_locked = false
+	_phase_three_super_slam_running = false
 	visual.speed_scale = 1.0
 	_jump_visual_lift = 0.0
 	_clear_active_fx()
@@ -700,6 +723,114 @@ func _update_phase() -> void:
 	EventBus.emit_game_event(&"boss.phase.enter", {"phase": phase}, "boss_phase_%d" % phase)
 	TimeDirector.request_hit_stop(220, 0.06)
 	TimeDirector.request_flash(Color(1.0, 0.22, 0.2, 0.85), 180, 0.26)
+
+
+func trigger_phase_three_super_slam() -> void:
+	if phase < 3 or state == State.DEAD or not active:
+		return
+	if _phase_three_super_slam_running:
+		return
+	_phase_three_super_slam_running = true
+	call_deferred("_run_phase_three_super_slam")
+
+
+func _run_phase_three_super_slam() -> void:
+	if player_ref == null or state == State.DEAD:
+		_phase_three_super_slam_running = false
+		return
+	_is_fake_attack = false
+	_feint_followup_attack = &""
+	attack_area.deactivate()
+	_attack_facing_locked = true
+	state = State.JUMP
+	visual.speed_scale = 0.94
+	visual.play(&"jump")
+	_play_burst_sfx(0.92)
+	TimeDirector.request_shake(150, 9.0)
+
+	var viewport_half_width := get_viewport_rect().size.x * 0.5
+	var offscreen_dir := signf(global_position.x - player_ref.global_position.x)
+	if absf(offscreen_dir) <= 0.01:
+		offscreen_dir = -facing if absf(facing) > 0.01 else 1.0
+	var offscreen_x := player_ref.global_position.x + offscreen_dir * (viewport_half_width + 320.0)
+	var offscreen_y := player_ref.global_position.y - 260.0
+	var leap_tween := create_tween()
+	leap_tween.set_parallel(true)
+	leap_tween.tween_property(self, "global_position:x", offscreen_x, 0.44).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	leap_tween.tween_property(self, "global_position:y", offscreen_y, 0.44).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	await leap_tween.finished
+	if player_ref == null or state == State.DEAD:
+		_phase_three_super_slam_running = false
+		_attack_facing_locked = false
+		return
+
+	for step in [3, 2, 1]:
+		phase_three_countdown.emit(step)
+		_play_attack_sfx(1.22 + (3 - step) * 0.04)
+		await get_tree().create_timer(0.46, true, false, true).timeout
+		if player_ref == null or state == State.DEAD:
+			_phase_three_super_slam_running = false
+			_attack_facing_locked = false
+			return
+
+	var target_x := player_ref.global_position.x
+	var dive_start_y := player_ref.global_position.y - (get_viewport_rect().size.y + 260.0)
+	global_position = Vector2(target_x, dive_start_y)
+	facing = signf(player_ref.global_position.x - global_position.x)
+	if absf(facing) <= 0.01:
+		facing = 1.0
+	visual.flip_h = facing < 0.0
+	visual.speed_scale = 1.3
+	visual.play(&"slam")
+	_play_burst_sfx(1.08)
+	await get_tree().create_timer(0.14, true, false, true).timeout
+
+	var dive_tween := create_tween()
+	dive_tween.tween_property(self, "global_position:y", player_ref.global_position.y, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await dive_tween.finished
+	if state == State.DEAD:
+		_phase_three_super_slam_running = false
+		_attack_facing_locked = false
+		return
+
+	_resolve_phase_three_super_slam_hit()
+	await get_tree().create_timer(0.34, true, false, true).timeout
+	if state not in [State.DEAD, State.STUN, State.HURT]:
+		state = State.IDLE
+		visual.speed_scale = 1.0
+		visual.play(&"idle")
+		next_attack_ms = Time.get_ticks_msec() + slow_recovery_ms + 340
+	_attack_facing_locked = false
+	_phase_three_super_slam_running = false
+
+
+func _resolve_phase_three_super_slam_hit() -> void:
+	if player_ref == null:
+		return
+	var player_delta_x := player_ref.global_position.x - global_position.x
+	var impact_dir := signf(player_delta_x)
+	if absf(impact_dir) <= 0.01:
+		impact_dir = facing
+	var damage_amount := 24 + phase * 3 + phase_three_super_slam_damage_bonus
+	var payload := {
+		"source_actor": self,
+		"source_position": global_position,
+		"damage": damage_amount,
+		"attack_name": &"boss_attack_super_slam",
+		"knockback": Vector2(phase_three_super_slam_knockback_x * impact_dir, phase_three_super_slam_knockback_y),
+		"can_be_parried": true,
+		"is_grab": false
+	}
+	if player_ref.has_method("receive_hit"):
+		player_ref.receive_hit(payload)
+	_on_attack_hit_target(player_ref, payload)
+	TimeDirector.request_hit_stop(300, 0.03)
+	TimeDirector.request_flash(Color(1.0, 0.16, 0.14, 0.92), 180, 0.26)
+	TimeDirector.request_shake(380, 20.0)
+	_spawn_fx(_boom_frames, &"boom", global_position + Vector2(0.0, -6.0), Vector2(1.3, 1.3))
+	_spawn_fx(_boom_frames, &"boom", global_position + Vector2(-58.0, -16.0), Vector2(0.92, 0.92))
+	_spawn_fx(_boom_frames, &"boom", global_position + Vector2(58.0, -16.0), Vector2(0.92, 0.92))
+	_play_burst_sfx(0.94)
 
 
 func _build_boom_prefix_frames(frame_count: int) -> SpriteFrames:
@@ -838,7 +969,12 @@ func _draw() -> void:
 
 
 func _show_attack_warning(duration_ms: int) -> void:
-	_attack_warning_until_ms = maxi(_attack_warning_until_ms, Time.get_ticks_msec() + duration_ms)
+	var expires_at := Time.get_ticks_msec() + duration_ms
+	if expires_at > _attack_warning_until_ms:
+		_attack_warning_until_ms = expires_at
+		if _warning_sfx_player.stream != null:
+			_warning_sfx_player.pitch_scale = 1.26
+			_warning_sfx_player.play()
 
 
 func _draw_attack_warning() -> void:

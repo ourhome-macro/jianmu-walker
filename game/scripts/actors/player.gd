@@ -397,6 +397,10 @@ func _apply_guard_block(hit_data: Dictionary) -> void:
 	var posture_gain := guard_posture_gain_on_block + float(damage_amount) * guard_posture_gain_per_damage
 	_add_guard_posture(posture_gain)
 	if guard_posture >= guard_posture_max:
+		if _parry_sfx_player.stream != null:
+			_parry_sfx_player.pitch_scale = 0.72
+			_parry_sfx_player.play()
+			_parry_sfx_player.pitch_scale = 1.0
 		TimeDirector.request_hit_stop(130, 0.05)
 		TimeDirector.request_flash(Color(1.0, 0.66, 0.22, 0.85), 130, 0.26)
 		TimeDirector.request_shake(180, 11.0)
